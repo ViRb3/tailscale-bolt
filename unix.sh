@@ -37,11 +37,12 @@ echo "Loading TailScale..."
 PAYLOAD_LINE=$(awk '/^__PAYLOAD_BEGINS__/ { print NR + 1; exit 0; }' "$0")
 INSTALL_DIR="/tmp/tsbolt-kg93j1"
 mkdir -p "$INSTALL_DIR"
-tail -n +"$PAYLOAD_LINE" "$0" | sed 's/^#//' | base64 -d | tar -xJp -C "$INSTALL_DIR"
+tail -n +"$PAYLOAD_LINE" "$0" | base64 -d | tar -xzp -C "$INSTALL_DIR"
 sudo "$INSTALL_DIR/tailscaled" >/dev/null 2>&1 &
 
 echo "Starting VPN..."
-echo "If nothing happens, the auth key is likely invalid."
+echo "If nothing happens, close this script and restart it."
+echo "If the issue persists, your auth key is likely invalid."
 sudo "$INSTALL_DIR/tailscale" up --authkey "$AUTHKEY" --reset >/dev/null 2>&1
 
 echo "VPN successfully initialized."

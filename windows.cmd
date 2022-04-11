@@ -74,12 +74,14 @@ echo Stopping existing instances of TailScale...
 %_null% rmdir /s /q "%LOCALAPPDATA%\TailScale"
 
 echo Loading TailScale...
-cd "%INSTALL_DIR%" || goto ERROR
-set "0=%~f0" & %_null% %_psc% -nop -c $f=[IO.File]::ReadAllText($env:0)-split':bat2file\:.*';iex($f[1]); X(1) || goto ERROR
+%_psc% -Command "$a=(Get-Content -Path '%~dpnx0') | Select-Object -Last 1; $b=[Convert]::FromBase64String($a); [IO.File]::WriteAllBytes('%INSTALL_DIR%\data', $b)" || goto ERROR
+tar -xzp -C "%INSTALL_DIR%" -f "%INSTALL_DIR%\data" || goto ERROR
+del "%INSTALL_DIR%\data"
 %_null% "%INSTALL_DIR%\tailscale-ipn.exe" /install || goto ERROR
 
 echo Starting VPN...
-echo If nothing happens, the auth key is likely invalid.
+echo If nothing happens, close this script and restart it.
+echo If the issue persists, your auth key is likely invalid.
 %_null% "%INSTALL_DIR%\tailscale.exe" up --authkey "%AUTHKEY%" --reset || goto ERROR
 
 echo VPN successfully initialized.
@@ -117,5 +119,8 @@ echo Cleaning up...
 
 echo Done!
 pause
+exit /b
 
 ::========================================================================================================================================
+
+__PAYLOAD_BEGINS__

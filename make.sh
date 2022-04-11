@@ -1,39 +1,62 @@
 #!/bin/bash
 set -eu -o pipefail -E
 
-AUTHKEY=$(tr <assets/.authkey -d '[:space:]')
+auth_key=$(tr <.authkey -d '[:space:]')
+tailscale_version="1.22.2"
 
 echo "Building..."
-rm -rf build >/dev/null 2>&1 || true
 mkdir -p build
 
-dists=("linux-amd64" "linux-arm64" "macos-amd64")
-for dist in "${dists[@]}"; do
+for i in "linux amd64" "linux arm" "linux arm64" "linux 386" "darwin amd64" "darwin arm64" "windows amd64" "windows 386"; do
+    i=($i)
+    os="${i[0]}"
+    arch="${i[1]}"
+    dist="$os-$arch"
+
     echo "+ $dist"
-    cp unix.sh "build/tsbolt-$dist.sh"
-    sed -i "s/__AUTHKEY__/$AUTHKEY/" "build/tsbolt-$dist.sh"
-    (cd "assets/$dist" && XZ_OPT=-9 tar -cJf - ./*) | base64 -w 128 | sed 's/^/#/' >>"build/tsbolt-$dist.sh"
-done
 
-cd build
-for f in *; do
-    name=$(basename -- "$f")
-    name="${name%.*}"
-    if [[ $f == *-macos-* ]]; then
-        mv "$f" "$name.command"
-        f="$name.command"
+    # only download files if not exist
+    # to force an update, simply clear your "build" directory
+    if [ -z "$(ls "build/$dist" 2>/dev/null)" ]; then
+        mkdir -p "build/$dist"
+        if [ "$os" = "windows" ]; then
+            if [ "$arch" = "386" ]; then
+                axel "https://pkgs.tailscale.com/stable/tailscale-setup-$tailscale_version-x86.msi" -o build/tailscale.msi
+            else
+                axel "https://pkgs.tailscale.com/stable/tailscale-setup-$tailscale_version-$arch.msi" -o build/tailscale.msi
+            fi
+            rm -rf build/tmp || true
+            mkdir build/tmp
+            msiextract build/tailscale.msi -C build/tmp >/dev/null
+            rm build/tailscale.msi
+            find build/tmp -type f \( -name "tailscale*.exe" -or -name "wintun.dll" \) -exec mv {} "build/$dist" \;
+            rm -rf build/tmp
+            if [ -z "$(ls "build/$dist" 2>/dev/null)" ]; then
+                echo "Failed to extract required binaries"
+                exit 1
+            fi
+        else
+            (cd tailscale && GOOS="$os" GOARCH="$arch" ./build_dist.sh -o "../build/$dist/" -ldflags="-s -w" -trimpath tailscale.com/cmd/tailscale)
+            (cd tailscale && GOOS="$os" GOARCH="$arch" ./build_dist.sh -o "../build/$dist/" -ldflags="-s -w" -trimpath tailscale.com/cmd/tailscaled)
+        fi
     fi
-    chmod 0777 "$f"
-    zip -9 "$name.zip" "$f"
-    rm "$f"
-done
-cd -
 
-echo "+ windows-amd64"
-cp windows.cmd build/tsbolt-windows-amd64.cmd
-sed -i "s/__AUTHKEY__/$AUTHKEY/" build/tsbolt-windows-amd64.cmd
-cmd.exe /c "Compressed2TXT/Compressed 2 TXT.bat" assets/windows-amd64/*
-tail -n +3 "assets/windows-amd64/"*~.bat >>build/tsbolt-windows-amd64.cmd
-rm "assets/windows-amd64/"*~.bat
+    if [ "$os" = "windows" ]; then
+        cp windows.cmd build/tsbolt.tmp
+    else
+        cp unix.sh build/tsbolt.tmp
+    fi
+
+    sed -i "" "s/__AUTHKEY__/$auth_key/" build/tsbolt.tmp
+    (cd "build/$dist" && GZIP=-9 tar -czf - ./*) | base64 >>build/tsbolt.tmp
+
+    if [ "$os" = "windows" ]; then
+        mv build/tsbolt.tmp "build/tsbolt-$dist.cmd"
+    elif [ "$os" = "darwin" ]; then
+        mv build/tsbolt.tmp "build/tsbolt-$dist.command"
+    else
+        mv build/tsbolt.tmp "build/tsbolt-$dist.sh"
+    fi
+done
 
 echo "Done!"

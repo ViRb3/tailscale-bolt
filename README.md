@@ -1,36 +1,27 @@
 # TailScale Bolt
 
-> Create self-contained, 1-click scripts for any OS, which connect any computer to your TailScale network.
+> Create self-contained, 1-click scripts, which connect any computer to your TailScale network.
 
 ## Supported platforms
 
-- Linux
-- macOS
-- Windows
+- Linux (amd64, arm, arm64, 386)
+- macOS (amd64, arm64)
+- Windows (amd64, arm64\*, 386)
+
+> \* Works through emulation, simply use the 386 build.
 
 ## Usage
 
-1. Create a new `assets/` directory and place your TailScale assets in the following way:
+1. Create a new file `.authkey` in the root directory of this project and paste your TailScale auth key, without any spaces or new lines.
+
+2. Install the dependencies:
    ```
-   assets
-   ├── .authkey
-   ├── linux-amd64
-   │   ├── tailscale
-   │   └── tailscaled
-   ├── linux-arm64
-   │   ├── tailscale
-   │   └── tailscaled
-   ├── macos-amd64
-   │   ├── tailscale
-   │   └── tailscaled
-   └── windows-amd64
-       ├── tailscale-ipn.exe
-       ├── tailscale.exe
-       ├── tailscaled.exe
-       └── wintun.dll
+   msitools axel
    ```
-2. Run [make.sh](make.sh)
+3. Run [make.sh](make.sh).
 
 The resulting scripts will be generated in a `build/` directory.
 
-> ### :warning: Currently, Windows script generation is only supported under WSL on Windows.
+**NOTE:** Due to platform limitations, closed-source binaries for Windows have to be downloaded from the official TailScale server. These downloads are cached and reused on subsequent builds. If you want to force a full rebuild, simply delete the `build/` directory.
+
+**NOTE2:** TailScale does not currently allow two instances to run at the same time. To work around this, this script will deactivate any existing installation. If you used TailScale before running this script, you _will_ need to re-authenticate afterwards.
