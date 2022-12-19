@@ -1,6 +1,17 @@
 #!/bin/bash
 set -eu -o pipefail -E
 
+while getopts t:a: flag
+do
+    case "${flag}" in
+        t) tailnet=${OPTARG};;
+        a) authkey=${OPTARG};;
+
+    esac
+done
+echo "Tailnet: $tailnet";
+echo "Authkey: $authkey";
+
 auth_key=$(tr <.authkey -d '[:space:]')
 tailscale_version="1.22.2"
 
